@@ -18,13 +18,33 @@ from backend.models.schemas import (
 )
 
 def _mock_sentiment(text: str) -> dict:
-    """Deterministic mock prediction for demo mode (no model loaded)."""
+    """Semi-intelligent deterministic mock prediction for demo mode."""
+    text_lower = text.lower()
+    
+    # 1. Keyword-based bias
+    pos_keywords = {"good", "great", "excellent", "fast", "amazing", "happy", "बढ़िया", "अच्छा", "சிறந்த"}
+    neg_keywords = {"bad", "slow", "late", "cold", "pathetic", "worst", "bakwaas", "हो गया", "तमाम"}
+    
+    score_pos = sum(1 for w in pos_keywords if w in text_lower)
+    score_neg = sum(1 for w in neg_keywords if w in text_lower)
+    
+    # 2. Seeded RNG for probabilities
     rng = random.Random(int(hashlib.md5(text.encode()).hexdigest(), 16) % (2**32))
-    labels = ["positive", "neutral", "negative"]
     raw = [rng.random() for _ in range(3)]
+    
+    # Apply heuristic bias (index: 0=pos, 1=neu, 2=neg)
+    if score_pos > score_neg:
+        raw[0] += 2.0
+    elif score_neg > score_pos:
+        raw[2] += 2.0
+    elif "test" in text_lower:
+        raw[1] += 2.0
+
     total = sum(raw)
     probs = [r / total for r in raw]
+    labels = ["positive", "neutral", "negative"]
     idx = probs.index(max(probs))
+
     return {
         "label": labels[idx],
         "label_id": idx,
