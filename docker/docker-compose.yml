@@ -1,0 +1,112 @@
+# ─────────────────────────────────────────────────────────────
+#  docker-compose.yml
+#  Multilingual Indian Sentiment Analysis
+#  Services: backend (FastAPI) + redis
+#  Usage:
+#    docker compose up --build            # dev (CPU)
+#    docker compose --profile gpu up      # GPU variant
+# ─────────────────────────────────────────────────────────────
+
+version: "3.9"
+
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+
+  # ── Redis ─────────────────────────────────────────────────
+  redis:
+    image: redis:7.2-alpine
+    container_name: senti_redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *default-logging
+
+  # ── FastAPI Backend (CPU) ──────────────────────────────────
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: senti_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+    environment:
+      # Override specific values for containerized context
+      REDIS_URL: redis://redis:6379/0
+      PORT: "8000"
+      ALLOWED_ORIGINS: "http://localhost:3000,https://your-frontend.vercel.app"
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      # Mount model cache to avoid re-downloading on restart
+      - hf_cache:/home/appuser/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 90s
+      retries: 3
+    logging: *default-logging
+
+  # ── FastAPI Backend (GPU variant) ─────────────────────────
+  backend-gpu:
+    profiles:
+      - gpu
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend.gpu
+    container_name: senti_backend_gpu
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      PORT: "8000"
+      ALLOWED_ORIGINS: "http://localhost:3000,https://your-frontend.vercel.app"
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 90s
+      retries: 3
+    logging: *default-logging
+
+volumes:
+  redis_data:
+    driver: local
+  hf_cache:
+    driver: local
+
+networks:
+  default:
+    name: senti_network

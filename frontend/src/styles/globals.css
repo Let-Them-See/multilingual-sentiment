@@ -1,0 +1,108 @@
+/* ── Global styles ── */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CSS variables mirroring the 6-color design palette */
+:root {
+  --color-mint:   #F1F6F4;
+  --color-gold:   #FFC801;
+  --color-teal:   #114C5A;
+  --color-sage:   #D9E8E2;
+  --color-orange: #FF9932;
+  --color-dark:   #172B36;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-mint);
+    color: var(--color-dark);
+    font-family: "Inter", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    color: var(--color-teal);
+    font-weight: 700;
+  }
+
+  a {
+    color: var(--color-teal);
+    transition: color 0.15s ease;
+  }
+
+  a:hover {
+    color: var(--color-orange);
+  }
+}
+
+@layer components {
+  /* Card component */
+  .card {
+    @apply bg-sage rounded-xl p-6 shadow-card;
+  }
+
+  /* Primary button */
+  .btn-primary {
+    @apply bg-gold text-teal-dark font-semibold px-6 py-2.5 rounded-lg
+           hover:brightness-105 active:scale-95 transition-all duration-150;
+  }
+
+  /* Outline button */
+  .btn-outline {
+    @apply border-2 border-teal text-teal font-semibold px-6 py-2.5 rounded-lg
+           hover:bg-teal hover:text-mint transition-all duration-150;
+  }
+
+  /* Input field */
+  .input-field {
+    @apply w-full rounded-lg border border-sage bg-mint px-4 py-3
+           text-teal-dark placeholder-teal/50 focus:outline-none
+           focus:ring-2 focus:ring-teal/30 transition;
+  }
+
+  /* Sentiment badge */
+  .badge-positive {
+    @apply inline-flex items-center gap-1 bg-teal text-mint text-xs font-semibold
+           px-3 py-1 rounded-full;
+  }
+
+  .badge-neutral {
+    @apply inline-flex items-center gap-1 bg-gold text-teal-dark text-xs font-semibold
+           px-3 py-1 rounded-full;
+  }
+
+  .badge-negative {
+    @apply inline-flex items-center gap-1 bg-orange text-white text-xs font-semibold
+           px-3 py-1 rounded-full;
+  }
+
+  /* Sidebar nav link */
+  .nav-link {
+    @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium
+           text-sage hover:bg-teal/80 hover:text-mint transition-colors;
+  }
+
+  .nav-link-active {
+    @apply bg-teal/90 text-mint;
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-mint);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-sage);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-teal);
+}

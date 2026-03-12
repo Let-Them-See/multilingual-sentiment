@@ -1,0 +1,64 @@
+# ─────────────────────────────────────────────────────────────
+#  Dockerfile.backend
+#  Multilingual Indian Sentiment Analysis — FastAPI Backend
+#  Python 3.11 slim · uvicorn · IndicBERT + LoRA (NF4)
+# ─────────────────────────────────────────────────────────────
+FROM python:3.11-slim AS base
+
+# System deps: gcc for compiled wheels, curl for healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        gcc \
+        g++ \
+        libgomp1 \
+        curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Non-root user for security
+RUN groupadd --gid 1001 appgroup \
+    && useradd --uid 1001 --gid appgroup --shell /bin/bash --create-home appuser
+
+WORKDIR /app
+
+# ── Dependencies ─────────────────────────────────────────────
+FROM base AS deps
+
+COPY backend/requirements.txt requirements.txt
+
+# Install CPU-only torch first (smaller image); override with CUDA in prod compose
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir \
+        torch==2.3.0+cpu \
+        torchvision==0.18.0+cpu \
+        --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir -r requirements.txt
+
+# ── Application ───────────────────────────────────────────────
+FROM deps AS app
+
+# Copy only application code (not notebooks, training scripts, etc.)
+COPY backend/ ./backend/
+COPY .env.example .env.example
+
+# Set ownership
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
+# Runtime environment
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8000 \
+    WORKERS=1
+
+EXPOSE 8000
+
+# Healthcheck via /health endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["uvicorn", "backend.main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "1", \
+     "--log-level", "info"]
